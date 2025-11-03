@@ -1,61 +1,55 @@
-// Vercel Serverless Function - Smart Key Rotation with Usage Tracking
-// Place this file at: /api/get-key.js
+// Simplified version - stores data in memory (resets on deploy)
+// For persistent storage, you'll need a database
 
-import fs from 'fs';
-import path from 'path';
+let keysData = {
+  keys: [
+    {
+      key: "0f370e39f301408b9c1e4af782174a96",
+      name: "Primary Key",
+      active: true,
+      dailyLimit: 100,
+      usedToday: 0,
+      lastReset: new Date().toISOString()
+    },
+    {
+      key: "YOUR_SECOND_API_KEY_HERE",
+      name: "Backup Key 1",
+      active: true,
+      dailyLimit: 100,
+      usedToday: 0,
+      lastReset: new Date().toISOString()
+    },
+    {
+      key: "YOUR_THIRD_API_KEY_HERE",
+      name: "Backup Key 2",
+      active: true,
+      dailyLimit: 100,
+      usedToday: 0,
+      lastReset: new Date().toISOString()
+    },
+    {
+      key: "YOUR_FOURTH_API_KEY_HERE",
+      name: "Backup Key 3",
+      active: true,
+      dailyLimit: 100,
+      usedToday: 0,
+      lastReset: new Date().toISOString()
+    }
+  ]
+};
 
-// Path to your keys data file
-const KEYS_FILE = path.join(process.cwd(), 'data', 'keys.json');
-
-// Helper: Read keys from JSON file
-function readKeys() {
-  try {
-    const data = fs.readFileSync(KEYS_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error reading keys file:', error);
-    // Fallback: Use environment variables if file doesn't exist
-    return {
-      keys: [
-        {
-          key: process.env.NEWS_API_KEY_1 || "",
-          name: "Primary Key",
-          active: true,
-          dailyLimit: 100,
-          usedToday: 0,
-          lastReset: new Date().toISOString()
-        }
-      ],
-      updated: new Date().toISOString(),
-      version: "1.0"
-    };
-  }
-}
-
-// Helper: Write keys to JSON file
-function writeKeys(keysData) {
-  try {
-    fs.writeFileSync(KEYS_FILE, JSON.stringify(keysData, null, 2), 'utf8');
-    return true;
-  } catch (error) {
-    console.error('Error writing keys file:', error);
-    return false;
-  }
-}
-
-// Helper: Check if date is from previous day (UTC)
+// Check if date is from previous day (UTC)
 function needsReset(lastResetStr) {
   const lastReset = new Date(lastResetStr);
   const now = new Date();
   
-  // Reset if different UTC day
   return lastReset.getUTCDate() !== now.getUTCDate() ||
          lastReset.getUTCMonth() !== now.getUTCMonth() ||
          lastReset.getUTCFullYear() !== now.getUTCFullYear();
 }
 
-// Helper: Find available key with lowest usage
-function findAvailableKey(keysData) {
+// Find available key with lowest usage
+function findAvailableKey() {
   const now = new Date().toISOString();
   let availableKeys = [];
 
@@ -75,7 +69,7 @@ function findAvailableKey(keysData) {
   }
 
   if (availableKeys.length === 0) {
-    return null; // All keys exhausted
+    return null;
   }
 
   // Sort by usage (lowest first)
@@ -86,15 +80,22 @@ function findAvailableKey(keysData) {
 
 // Main handler
 export default function handler(req, res) {
-  // Security: Only allow GET requests
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Content-Type', 'application/json');
+  
+  // Handle OPTIONS for CORS
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  // Only allow GET
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    // Read current keys data
-    let keysData = readKeys();
-
     // Check if this is a failure report
     const failed = req.query.failed === 'true';
     const failedKey = req.query.key;
@@ -103,16 +104,15 @@ export default function handler(req, res) {
       // Mark the failed key as exhausted
       for (let keyObj of keysData.keys) {
         if (keyObj.key === failedKey) {
-          keyObj.usedToday = keyObj.dailyLimit; // Mark as exhausted
+          keyObj.usedToday = keyObj.dailyLimit;
           console.log(`Key "${keyObj.name}" marked as exhausted`);
           break;
         }
       }
-      writeKeys(keysData);
     }
 
     // Find available key
-    const selectedKey = findAvailableKey(keysData);
+    const selectedKey = findAvailableKey();
 
     if (!selectedKey) {
       console.error('All API keys exhausted!');
@@ -130,19 +130,8 @@ export default function handler(req, res) {
     // Increment usage counter
     selectedKey.usedToday++;
 
-    // Save updated data
-    writeKeys(keysData);
-
     // Log usage
     console.log(`Provided key: ${selectedKey.name} (${selectedKey.usedToday}/${selectedKey.dailyLimit})`);
-
-    // Set cache headers (short cache - 5 minutes)
-    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate');
-    res.setHeader('Content-Type', 'application/json');
-    
-    // CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
 
     // Return the selected key
     return res.status(200).json({
