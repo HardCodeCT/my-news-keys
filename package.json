@@ -1,0 +1,9 @@
+{
+  "name": "news-api-keys",
+  "version": "1.0.0",
+  "description": "Server-side API key rotation for News API",
+  "type": "module",
+  "engines": {
+    "node": ">=18.x"
+  }
+}
