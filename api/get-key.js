@@ -11,7 +11,7 @@ let keysData = {
       lastReset: new Date().toISOString()
     },
     {
-      key: "YOUR_SECOND_API_KEY_HERE",
+      key: "0f8a997ec4242b2883bc23ab5195a6ad",
       name: "Backup Key 1",
       active: true,
       dailyLimit: 100,
@@ -178,5 +178,6 @@ export default function handler(req, res) {
     });
   }
 }
+
 
 
