@@ -41,6 +41,14 @@ let keysData = {
       dailyLimit: 100,
       usedToday: 0,
       lastReset: new Date().toISOString()
+    },
+    {
+      key: "4487076088c4472a3e17c304a8bb0766",
+      name: "Backup Key 5",
+      active: true,
+      dailyLimit: 100,
+      usedToday: 0,
+      lastReset: new Date().toISOString()
     }
   ]
 };
@@ -186,6 +194,7 @@ export default function handler(req, res) {
     });
   }
 }
+
 
 
 
